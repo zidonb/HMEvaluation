@@ -1,0 +1,25 @@
+# Python
+   __pycache__/
+   *.py[cod]
+   *$py.class
+   *.so
+   .Python
+   env/
+   venv/
+   
+   # Environment variables
+   .env
+   .env.local
+   
+   # Excel files (if you don't want to commit test data)
+   *.xlsx
+   mapping.xlsx
+   evaluation_results.xlsx
+   
+   # IDE
+   .vscode/
+   .idea/
+   
+   # OS
+   .DS_Store
+   Thumbs.db
