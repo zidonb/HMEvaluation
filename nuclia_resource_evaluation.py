@@ -8,8 +8,8 @@ API_KEY = "eyJhbGciOiJSUzI1NiIsImtpZCI6InNhIiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwc
 # Authenticate
 sdk.NucliaAuth().kb(url=KNOWLEDGE_BOX_URL, token=API_KEY)
 
-# Read the Excel file
-df = pd.read_excel('mapping.xlsx')
+# Read the Excel file (from QnA sheet)
+df = pd.read_excel('mapping.xlsx', sheet_name='QnA')
 
 # Prepare results storage
 results = []
@@ -23,6 +23,8 @@ print("Starting evaluation...\n")
 # Iterate through each row
 for idx, row in df.iterrows():
     document_name = row['Document_Name']
+    category = row['Category']
+    question_level = row['Question Level']
     question = row['Question']
     expected_answer = row['Answer']
     
@@ -49,6 +51,9 @@ for idx, row in df.iterrows():
             for resource_id, resource in response.find_result.resources.items():
                 if hasattr(resource, 'slug'):
                     retrieved_resources.append(resource.slug)
+
+    # Count total resources returned
+    total_resources_returned = len(retrieved_resources)
 
     # Remove file extension from document name for comparison
     document_name_without_ext = document_name.replace('.pdf', '').replace('.docx', '').replace('.doc', '')
@@ -80,20 +85,24 @@ for idx, row in df.iterrows():
     # Store results
     result = {
         'Document_Name': document_name,
+        'Category': category,
+        'Question_Level': question_level,
         'Question': question,
         'Expected_Answer': expected_answer,
         'Nuclia_Answer': answer,
         'Position': position if position else 'Not found',
+        'Total_Resources_Returned': total_resources_returned,
         'Reciprocal_Rank': reciprocal_rank,
         'RR_Percentage': f"{reciprocal_rank * 100:.1f}%",
         'Hit@3': 'Yes' if hit_at_k else 'No',
+        'Hit_Overall': 'Yes' if hit_overall else 'No',
         'Match_Info': match_info,
         'Retrieved_Resources': ', '.join(retrieved_resources[:5])  # Store top 5 resource slugs
     }
     results.append(result)
     
     # Print progress
-    print(f"  {document_name}: MRR: {reciprocal_rank:.2f} ({reciprocal_rank*100:.0f}%) | Hit@3: {'Yes' if hit_at_k else 'No'} | {match_info}")
+    print(f"  {document_name}: MRR: {reciprocal_rank:.2f} ({reciprocal_rank*100:.0f}%) | Hit@3: {'Yes' if hit_at_k else 'No'} | {match_info} | Resources: {total_resources_returned}")
 
 # Calculate final metrics
 num_questions = len(df)
@@ -102,13 +111,13 @@ hit_at_3_rate = (total_hit_at_3 / num_questions) * 100
 hit_overall_rate = (total_hit_overall / num_questions) * 100
 
 # Print summary
-print("\n" + "="*60)
+print("\n" + "="*70)
 print(f"SUMMARY ({num_questions} questions evaluated)")
-print("="*60)
+print("="*70)
 print(f"Mean Reciprocal Rank (MRR): {mrr:.2f} ({mrr*100:.1f}%)")
 print(f"Hit@3 Rate: {hit_at_3_rate:.1f}% ({total_hit_at_3}/{num_questions})")
 print(f"Hit Rate (Overall): {hit_overall_rate:.1f}% ({total_hit_overall}/{num_questions})")
-print("="*60)
+print("="*70)
 
 # Create results DataFrame
 results_df = pd.DataFrame(results)
@@ -116,15 +125,19 @@ results_df = pd.DataFrame(results)
 # Add summary rows
 summary_data = {
     'Document_Name': ['', 'SUMMARY'],
+    'Category': ['', 'ALL'],
+    'Question_Level': ['', 'ALL'],
     'Question': ['', f'{num_questions} questions evaluated'],
     'Expected_Answer': ['', ''],
     'Nuclia_Answer': ['', ''],
     'Position': ['', ''],
+    'Total_Resources_Returned': ['', ''],
     'Reciprocal_Rank': ['', mrr],
     'RR_Percentage': ['', f"{mrr*100:.1f}%"],
     'Hit@3': ['', f"{hit_at_3_rate:.1f}%"],
-    'Match_Info': ['', f"MRR: {mrr:.2f}, Hit@3: {total_hit_at_3}/{num_questions}"],
-    'retrieved_resources': ['', '']
+    'Hit_Overall': ['', f"{hit_overall_rate:.1f}%"],
+    'Match_Info': ['', f"MRR: {mrr:.2f}, Hit@3: {total_hit_at_3}/{num_questions}, Hit Overall: {total_hit_overall}/{num_questions}"],
+    'Retrieved_Resources': ['', '']
 }
 summary_df = pd.DataFrame(summary_data)
 results_df = pd.concat([results_df, summary_df], ignore_index=True)
